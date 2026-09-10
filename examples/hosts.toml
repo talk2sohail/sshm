@@ -1,0 +1,40 @@
+# Example sshm host list. Copy to ~/.config/sshm/hosts.toml and edit,
+# or just run `sshm import` to pull in your existing ~/.ssh/config.
+
+version = 1
+
+[[host]]
+alias = "prod-api"
+hostname = "10.0.4.21"
+user = "ubuntu"
+port = 2222
+identity_file = "~/.ssh/keys/prod.pem"
+tags = ["aws", "prod"]
+description = "Main API server"
+options = ["ServerAliveInterval=30"]
+
+[[host]]
+alias = "prod-db"
+hostname = "10.0.4.30"
+user = "postgres"
+identity_file = "~/.ssh/keys/prod.pem"
+tags = ["aws", "db", "prod"]
+
+[[host]]
+alias = "bastion"
+hostname = "jump.example.com"
+user = "ops"
+tags = ["prod"]
+
+[[host]]
+alias = "behind-bastion"
+hostname = "10.0.9.4"
+user = "ubuntu"
+proxy_jump = "bastion"
+tags = ["prod"]
+description = "Only reachable through the bastion"
+
+[[host]]
+alias = "home-nas"
+hostname = "192.168.1.10"
+tags = ["home"]
