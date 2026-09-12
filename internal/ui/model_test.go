@@ -8,9 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/model"
-	"github.com/sohail/sshm/internal/store"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/probe"
+	"github.com/talk2sohail/sshm/internal/store"
 )
 
 // newTestModel builds a model over a temporary store so tests never touch the
@@ -465,5 +466,111 @@ func TestScrollingKeepsCursorVisible(t *testing.T) {
 		if m.cursor < lo || m.cursor >= hi {
 			t.Fatalf("cursor %d outside visible range [%d,%d)", m.cursor, lo, hi)
 		}
+	}
+}
+
+// Every command chord the footer and help screen advertise must actually be
+// handled by the list view. It is easy to document a key and forget to wire it,
+// or to rename one in only one of the two places.
+func TestEveryDocumentedCommandKeyIsHandled(t *testing.T) {
+	cases := []struct {
+		name string
+		key  tea.KeyType
+		want func(m *Model) bool
+	}{
+		{"ctrl+n opens the add form", tea.KeyCtrlN, func(m *Model) bool { return m.mode == modeForm }},
+		{"ctrl+e opens the edit form", tea.KeyCtrlE, func(m *Model) bool { return m.mode == modeForm }},
+		{"ctrl+x asks to confirm a delete", tea.KeyCtrlX, func(m *Model) bool { return m.mode == modeConfirmDelete }},
+		{"ctrl+g opens help", tea.KeyCtrlG, func(m *Model) bool { return m.mode == modeHelp }},
+	}
+	for _, c := range cases {
+		m := newTestModel(t, seed()...)
+		key(m, c.key)
+		if !c.want(m) {
+			t.Errorf("%s: did not happen (mode = %v)", c.name, m.mode)
+		}
+	}
+
+	// ctrl+y does not change mode, but it must still hand back work to do
+	// rather than being silently dropped.
+	m := newTestModel(t, seed()...)
+	if cmd := key(m, tea.KeyCtrlY); cmd == nil {
+		t.Error("ctrl+y returned no command")
+	}
+
+	// ctrl+r only has anything to do when a prober is configured, so give it
+	// one and check the visible rows actually went back to "checking".
+	p := newTestModel(t, seed()...)
+	p.prober = probe.New(probe.DefaultTimeout, probe.DefaultConcurrency, probe.DefaultTTL)
+	if cmd := key(p, tea.KeyCtrlR); cmd == nil {
+		t.Error("ctrl+r returned no command")
+	}
+	if got := p.status["prod-api"].Status; got != probe.Checking {
+		t.Errorf("ctrl+r left prod-api at %v, want %v", got, probe.Checking)
+	}
+}
+
+// Movement has to work through both the arrow keys and the fzf-style chords,
+// because the two arrive by completely different routes: arrows are escape
+// sequences on Unix and virtual key codes on the Windows console, while ^j/^k
+// are plain control characters everywhere.
+func TestMovementBindingsAgree(t *testing.T) {
+	for _, pair := range []struct {
+		down, up tea.KeyType
+		label    string
+	}{
+		{tea.KeyDown, tea.KeyUp, "arrows"},
+		{tea.KeyCtrlJ, tea.KeyCtrlK, "ctrl+j/ctrl+k"},
+	} {
+		m := newTestModel(t, seed()...)
+		key(m, pair.down)
+		key(m, pair.down)
+		if m.cursor != 2 {
+			t.Errorf("%s: cursor = %d after two downs, want 2", pair.label, m.cursor)
+		}
+		key(m, pair.up)
+		if m.cursor != 1 {
+			t.Errorf("%s: cursor = %d after an up, want 1", pair.label, m.cursor)
+		}
+	}
+}
+
+// Terminals and the Windows console both deliver Tab, Enter and Backspace as
+// the control characters Ctrl+I, Ctrl+M and Ctrl+H. Binding a command to one of
+// those makes that command fire when the user presses Tab or Enter -- and on
+// Windows, where bubbletea decodes chords from the console event's character,
+// there is no way to tell them apart. Ctrl+[ is Esc for the same reason. None of
+// these may be used as a command key.
+func TestCommandKeysAvoidChordsTerminalsReserve(t *testing.T) {
+	reserved := map[tea.KeyType]string{
+		tea.KeyCtrlI:           "Tab",
+		tea.KeyCtrlM:           "Enter",
+		tea.KeyCtrlH:           "Backspace",
+		tea.KeyCtrlOpenBracket: "Esc",
+	}
+	for k, why := range reserved {
+		m := newTestModel(t, seed()...)
+		before := m.mode
+		key(m, k)
+		if m.mode != before {
+			t.Errorf("%v is how terminals send %s and must not be a command key; "+
+				"it changed the mode to %v", k, why, m.mode)
+		}
+		if got := m.query.Value(); got != "" {
+			t.Errorf("%v (%s) inserted %q into the search box", k, why, got)
+		}
+	}
+}
+
+// Ctrl+C quits from the list, and the search box must not swallow it: it is the
+// only binding a user is guaranteed to reach for when something is wrong.
+func TestCtrlCAlwaysQuits(t *testing.T) {
+	m := newTestModel(t, seed()...)
+	typeString(m, "prod")
+	if cmd := key(m, tea.KeyCtrlC); cmd == nil {
+		t.Fatal("ctrl+c returned no command")
+	}
+	if m.Launch != nil {
+		t.Error("ctrl+c must not launch a connection")
 	}
 }

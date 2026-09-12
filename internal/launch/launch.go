@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 // Binary is the ssh client to run. Overridable mainly for tests.

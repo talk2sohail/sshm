@@ -17,15 +17,16 @@ import (
 
 // Supported shells.
 const (
-	Bash = "bash"
-	Zsh  = "zsh"
-	Fish = "fish"
-	Tmux = "tmux"
+	Bash       = "bash"
+	Zsh        = "zsh"
+	Fish       = "fish"
+	Tmux       = "tmux"
+	PowerShell = "powershell"
 )
 
 // Shells returns the names Snippet accepts, sorted.
 func Shells() []string {
-	s := []string{Bash, Zsh, Fish, Tmux}
+	s := []string{Bash, Zsh, Fish, Tmux, PowerShell}
 	sort.Strings(s)
 	return s
 }
@@ -49,6 +50,8 @@ func Snippet(shell, key string) (string, error) {
 		return fishSnippet(ctrl), nil
 	case Tmux:
 		return tmuxSnippet(ctrl), nil
+	case PowerShell, "pwsh", "ps", "ps1":
+		return powershellSnippet(ctrl), nil
 	default:
 		return "", fmt.Errorf("unknown shell %q (supported: %s)",
 			shell, strings.Join(Shells(), ", "))
@@ -61,6 +64,7 @@ type ctrlKey struct {
 	Caret  string // "^S"
 	Escape string // "\C-s" for zsh/bash bind
 	Fish   string // "\cs" for fish bind
+	Chord  string // "Ctrl+s" for PSReadLine
 }
 
 func parseCtrl(key string) (ctrlKey, bool) {
@@ -81,6 +85,7 @@ func parseCtrl(key string) (ctrlKey, bool) {
 		Caret:  "^" + string(r),
 		Escape: `\C-` + lower,
 		Fish:   `\c` + lower,
+		Chord:  "Ctrl+" + lower,
 	}, true
 }
 
@@ -150,6 +155,42 @@ bind-key ` + strings.ToLower(string(c.Letter)) + ` new-window -n ssh 'sshm'
 `
 }
 
+// powershellSnippet binds the picker through PSReadLine, which is the only
+// thing in a PowerShell session that can own a key chord.
+//
+// Two details are load-bearing. PSReadLine is drawing and tracking the prompt
+// line when the handler fires, so the handler has to hand the line back
+// (RevertLine) before a full-screen program takes the console and ask for a
+// redraw (InvokePrompt) afterwards; skip either and the prompt is left
+// duplicated or missing once the picker -- or the ssh session it started --
+// exits. And there is no stty here: Windows consoles do not implement XOFF
+// flow control, so ^S needs no special handling, unlike on Unix.
+func powershellSnippet(c ctrlKey) string {
+	// Kept to plain ASCII on purpose: PowerShell 5.1 decodes a native command's
+	// output using the console's OEM code page, which turns anything outside it
+	// into mojibake on its way through Invoke-Expression.
+	return `# sshm - press ` + c.Caret + ` to open the server picker in this terminal.
+#
+# PSReadLine owns the prompt line while you are typing, so the binding gives the
+# line back before handing the console to sshm and asks for a redraw afterwards.
+# Without RevertLine the old prompt is still on screen under the picker; without
+# InvokePrompt there is no prompt at all when you come back.
+if (Get-Module -ListAvailable -Name PSReadLine) {
+    Import-Module PSReadLine
+    Set-PSReadLineKeyHandler -Chord '` + c.Chord + `' ` + "`" + `
+        -BriefDescription sshm ` + "`" + `
+        -LongDescription 'Open the sshm server picker' ` + "`" + `
+        -ScriptBlock {
+            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+            sshm
+            [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+        }
+} else {
+    Write-Warning "sshm: PSReadLine is not installed, so ` + c.Caret + ` cannot be bound. Install it with 'Install-Module PSReadLine -Scope CurrentUser', or just run 'sshm'."
+}
+`
+}
+
 // InstallHint returns the one-liner telling the user where to put the snippet.
 func InstallHint(shell string) string {
 	switch strings.ToLower(shell) {
@@ -161,6 +202,10 @@ func InstallHint(shell string) string {
 		return `Add to ~/.config/fish/config.fish:   sshm shell-init fish | source`
 	case Tmux:
 		return `Add the line above to ~/.tmux.conf, then: tmux source-file ~/.tmux.conf`
+	case PowerShell, "pwsh", "ps", "ps1":
+		// $PROFILE may not exist yet on a fresh machine, hence the New-Item.
+		return `Add to $PROFILE:    sshm shell-init powershell | Out-String | Invoke-Expression
+(create the profile first if needed: New-Item -ItemType File -Path $PROFILE -Force)`
 	default:
 		return ""
 	}

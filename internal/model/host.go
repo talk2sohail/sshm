@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -205,12 +206,20 @@ func (h Host) CheckIdentity() *KeyProblem {
 	if info.IsDir() {
 		return &KeyProblem{Path: path, Message: "key path is a directory", Fatal: true}
 	}
-	if mode := info.Mode().Perm(); mode&0o077 != 0 {
-		return &KeyProblem{
-			Path: path,
-			Message: fmt.Sprintf("key permissions are %#o, ssh requires 0600 (run: chmod 600 %s)",
-				mode, path),
-			Fatal: true,
+	// Only Unix has a permission check worth making. Windows has no POSIX mode
+	// bits: Mode().Perm() reports 0666 for any writable file and 0444 for a
+	// read-only one, so this test would call every key on the machine fatally
+	// misconfigured and tell the user to run a chmod that does not exist there.
+	// Win32 OpenSSH enforces key privacy through ACLs instead, which is not
+	// something a mode mask can see.
+	if runtime.GOOS != "windows" {
+		if mode := info.Mode().Perm(); mode&0o077 != 0 {
+			return &KeyProblem{
+				Path: path,
+				Message: fmt.Sprintf("key permissions are %#o, ssh requires 0600 (run: chmod 600 %s)",
+					mode, path),
+				Fatal: true,
+			}
 		}
 	}
 	return nil
@@ -255,11 +264,31 @@ func (h Host) SSHArgs(extra []string) []string {
 func (h Host) CommandLine(extra []string) string {
 	parts := append([]string{"ssh"}, h.SSHArgs(extra)...)
 	for i, p := range parts {
-		if strings.ContainsAny(p, " \t\"'$`\\") {
-			parts[i] = strconv.Quote(p)
-		}
+		parts[i] = quoteArg(p)
 	}
 	return strings.Join(parts, " ")
+}
+
+// quoteArg quotes one argument so the rendered line survives being pasted into
+// the shell the user is actually running.
+//
+// The rules differ by platform, and the Unix ones produce a broken command on
+// Windows. A backslash is an escape character in a POSIX shell, so strconv.Quote
+// is right there: it doubles them. On Windows a backslash is just the path
+// separator, and doubling it turns C:\Users\me\.ssh\id_ed25519 into a path ssh
+// cannot open -- so backslashes are left alone and do not by themselves make an
+// argument need quoting.
+func quoteArg(s string) string {
+	if runtime.GOOS == "windows" {
+		if !strings.ContainsAny(s, " \t\"") {
+			return s
+		}
+		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+	}
+	if !strings.ContainsAny(s, " \t\"'$`\\") {
+		return s
+	}
+	return strconv.Quote(s)
 }
 
 // AllTags returns the sorted, de-duplicated set of tags across hosts.

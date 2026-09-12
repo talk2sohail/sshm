@@ -8,9 +8,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/sohail/sshm/internal/fuzzy"
-	"github.com/sohail/sshm/internal/probe"
-	"github.com/sohail/sshm/internal/search"
+	"github.com/talk2sohail/sshm/internal/fuzzy"
+	"github.com/talk2sohail/sshm/internal/probe"
+	"github.com/talk2sohail/sshm/internal/search"
 )
 
 // View renders the current frame.

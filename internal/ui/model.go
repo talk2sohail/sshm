@@ -14,11 +14,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/model"
-	"github.com/sohail/sshm/internal/probe"
-	"github.com/sohail/sshm/internal/search"
-	"github.com/sohail/sshm/internal/store"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/probe"
+	"github.com/talk2sohail/sshm/internal/search"
+	"github.com/talk2sohail/sshm/internal/store"
 )
 
 type mode int
@@ -355,10 +355,14 @@ func (m *Model) copyCommand() (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	// Terminals that support OSC 52 will put this on the system clipboard;
-	// the rest ignore it harmlessly.
+	// Two paths, because neither covers every terminal on its own. OSC 52 works
+	// anywhere the terminal forwards it and costs nothing where it does not;
+	// nativeCopy is the platform fallback for hosts whose console ignores the
+	// sequence entirely, which is the normal case in conhost on Windows.
+	cmdLine := hit.Host.CommandLine(nil)
 	return m, tea.Batch(
-		setClipboardOSC52(hit.Host.CommandLine(nil)),
+		setClipboardOSC52(cmdLine),
+		nativeCopyCmd(cmdLine),
 		m.notify("copied ssh command for "+hit.Host.Alias),
 	)
 }
@@ -367,6 +371,16 @@ func (m *Model) copyCommand() (tea.Model, tea.Cmd) {
 // to put s on the system clipboard. bubbletea v1 (the version this module is
 // pinned to) doesn't ship a SetClipboard command like v2 does, so we emit the
 // sequence ourselves; terminals without OSC 52 support just ignore it.
+// nativeCopyCmd runs the platform clipboard helper off the update loop. A
+// failure is deliberately swallowed: OSC 52 may well have succeeded, and a
+// clipboard that did not take is not worth an error over the host list.
+func nativeCopyCmd(s string) tea.Cmd {
+	return func() tea.Msg {
+		_ = nativeCopy(s)
+		return nil
+	}
+}
+
 func setClipboardOSC52(s string) tea.Cmd {
 	return func() tea.Msg {
 		enc := base64.StdEncoding.EncodeToString([]byte(s))

@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sohail/sshm/internal/fuzzy"
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/fuzzy"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 // Field weights. An alias hit matters most: it is the name the user chose.

@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 // Form field order. Alias and hostname come first because they are the only

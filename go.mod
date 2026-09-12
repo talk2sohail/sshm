@@ -1,4 +1,4 @@
-module github.com/sohail/sshm
+module github.com/talk2sohail/sshm
 
 go 1.24
 

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -208,5 +209,42 @@ func TestCommandLineQuoting(t *testing.T) {
 	got := h.CommandLine(nil)
 	if !strings.Contains(got, `"/k/my key.pem"`) {
 		t.Errorf("path with space not quoted: %s", got)
+	}
+}
+
+// A rendered command line is meant to be pasted into the shell the user is
+// running, and the escaping rules are not the same everywhere. Doubling
+// backslashes is correct for a POSIX shell and wrong on Windows, where it turns
+// a perfectly good key path into one ssh cannot open.
+func TestCommandLineQuotesForTheHostPlatform(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		h := Host{Alias: "a", Hostname: "example.com", IdentityFile: `C:\Users\me\.ssh\id_ed25519`}
+		got := h.CommandLine(nil)
+		if !strings.Contains(got, `C:\Users\me\.ssh\id_ed25519`) {
+			t.Errorf("windows path was mangled: %s", got)
+		}
+		if strings.Contains(got, `\\`) {
+			t.Errorf("backslashes must not be doubled on windows: %s", got)
+		}
+		return
+	}
+
+	h := Host{Alias: "a", Hostname: "example.com", IdentityFile: `/k/we\ird.pem`}
+	got := h.CommandLine(nil)
+	if !strings.Contains(got, `\\`) {
+		t.Errorf("backslash must be escaped for a posix shell: %s", got)
+	}
+}
+
+// Whatever the platform, an argument that needs no quoting must not get any:
+// the line is read by humans as often as it is pasted.
+func TestCommandLineLeavesPlainArgsAlone(t *testing.T) {
+	h := Host{Alias: "a", Hostname: "example.com", User: "ubuntu", Port: 2222}
+	got := h.CommandLine(nil)
+	if strings.Contains(got, `"`) {
+		t.Errorf("nothing here needs quoting, got: %s", got)
+	}
+	if !strings.Contains(got, "ubuntu@example.com") {
+		t.Errorf("target missing from %s", got)
 	}
 }

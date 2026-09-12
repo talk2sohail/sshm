@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 func tmpStore(t *testing.T) *Store {

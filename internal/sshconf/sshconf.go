@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 // DefaultPath returns ~/.ssh/config.

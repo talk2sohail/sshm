@@ -16,8 +16,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/sohail/sshm/internal/atomicfile"
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/atomicfile"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 // FormatVersion is bumped only for breaking schema changes. Reading a newer
@@ -229,7 +229,7 @@ func (s *Store) Marshal() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteString("# sshm host list.\n")
 	sb.WriteString("# Edit by hand or with `sshm` (press a to add, e to edit).\n")
-	sb.WriteString("# Reference: https://github.com/sohail/sshm\n\n")
+	sb.WriteString("# Reference: https://github.com/talk2sohail/sshm\n\n")
 
 	enc := toml.NewEncoder(&sb)
 	enc.Indent = ""
