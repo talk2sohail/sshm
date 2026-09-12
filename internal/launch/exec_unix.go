@@ -7,6 +7,8 @@ import (
 	"syscall"
 )
 
+// dup2 is provided per-platform: see dup2_linux.go and dup2_unix.go.
+
 // execve replaces the process image. Available on Linux, macOS and the BSDs,
 // which is where an ssh launcher lives.
 //
@@ -24,7 +26,7 @@ func execve(path string, argv, env []string) error {
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
 		fd := int(tty.Fd())
 		for _, dst := range [3]int{0, 1, 2} {
-			_ = syscall.Dup2(fd, dst)
+			_ = dup2(fd, dst)
 		}
 		tty.Close()
 	}

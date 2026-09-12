@@ -303,10 +303,27 @@ func cmdShellInit(args []string) error {
 		return err
 	}
 	fmt.Print(snippet)
-	if hint := shellinit.InstallHint(words[0]); hint != "" {
-		fmt.Fprintln(os.Stderr, "\n"+hint)
+	// The hint is for a human running this at a prompt. When stdout is a pipe
+	// the caller is a shell startup file evaluating the snippet, and the hint
+	// is at best noise printed on every new shell -- and at worst fatal, since
+	// PowerShell turns a native command's stderr into an error record that can
+	// abort the Invoke-Expression that is loading the binding.
+	if stdoutIsTerminal() {
+		if hint := shellinit.InstallHint(words[0]); hint != "" {
+			fmt.Fprintln(os.Stderr, "\n"+hint)
+		}
 	}
 	return nil
+}
+
+// stdoutIsTerminal reports whether stdout is a character device rather than a
+// pipe or a file. os.Stat is enough here and keeps the dependency list short.
+func stdoutIsTerminal() bool {
+	info, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
 }
 
 // splitPositional peels leading non-flag arguments off args and returns them
@@ -369,6 +386,7 @@ USAGE
   sshm which <alias>          print the ssh command for a host
   sshm import [--from PATH]   import hosts from ~/.ssh/config
   sshm shell-init <shell>     print the key binding snippet
+                              (bash, fish, powershell, tmux, zsh)
   sshm path                   show where config and history live
   sshm version
 
@@ -383,7 +401,8 @@ SEARCH
 
 QUICK START
   sshm import                 pull in the hosts you already have
-  eval "$(sshm shell-init zsh)"    bind ^S to the picker
+  eval "$(sshm shell-init zsh)"    bind ^S to the picker (bash, zsh, fish)
+  sshm shell-init powershell | Out-String | Invoke-Expression   (PowerShell)
 
 Anything after -- is passed straight to ssh:
   sshm connect prod-api -- -L 8080:localhost:80
