@@ -1,7 +1,44 @@
 // Command sshm is a terminal picker for saved SSH servers.
 //
-// Run it with no arguments to open the picker. Everything else is a
-// subcommand; see `sshm help`.
+// Type a few letters of a host's name, press Enter, and you are connected. The
+// picker opens in the terminal you are already in and replaces itself with ssh,
+// so the session is yours with nothing left holding the tty.
+//
+// # Install
+//
+//	go install github.com/talk2sohail/sshm/cmd/sshm@latest
+//
+// Go 1.24 or newer, plus an ssh client on PATH.
+//
+// # Usage
+//
+// Run it with no arguments to open the picker, optionally with a query to
+// pre-filter the list. Everything else is a subcommand:
+//
+//	sshm [query]                open the picker
+//	sshm connect <alias>        connect directly, no UI
+//	sshm list [--json] [--tag]  list saved hosts
+//	sshm which <alias>          print the ssh command for a host
+//	sshm import [--from PATH]   import hosts from ~/.ssh/config
+//	sshm shell-init <shell>     print the key binding snippet
+//	sshm path                   show where config and history live
+//	sshm version
+//
+// Anything after -- is passed straight to ssh:
+//
+//	sshm connect prod-api -- -L 8080:localhost:80
+//
+// Bind it to a key so the picker is one chord away. For bash, zsh or fish:
+//
+//	eval "$(sshm shell-init zsh)"
+//
+// For PowerShell, which has no eval and binds through PSReadLine:
+//
+//	sshm shell-init powershell | Out-String | Invoke-Expression
+//
+// Hosts live in ~/.config/sshm/hosts.toml as plain TOML, meant to be edited by
+// hand and committed to a dotfiles repo. See the README for the full key map,
+// the search syntax, and the Windows notes.
 package main
 
 import (
@@ -9,6 +46,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -26,8 +64,51 @@ import (
 	"github.com/talk2sohail/sshm/internal/ui"
 )
 
-// version is overridden at build time with -ldflags "-X main.version=...".
-var version = "dev"
+// version is stamped in by the Makefile with -ldflags "-X main.version=...".
+// It is empty in a binary built any other way; buildVersion fills that in.
+var version = ""
+
+// buildVersion reports the version to print for `sshm version`.
+//
+// The ldflags value is preferred when there is one, but `go install
+// github.com/talk2sohail/sshm/cmd/sshm@latest` never runs the Makefile, so
+// without a fallback every binary installed the way the README recommends would
+// call itself "dev". The toolchain already records the module version and the
+// VCS revision in the binary, so ask for those instead of inventing anything.
+func buildVersion() string {
+	if version != "" {
+		return version
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+	// A released or pseudo-version module build. "(devel)" is what a build from
+	// a local checkout reports, which is no more useful than "dev".
+	if v := info.Main.Version; v != "" && v != "(devel)" {
+		return v
+	}
+	// A local build still carries the commit it came from, which is the most
+	// useful thing to print when there is no module version.
+	var rev, dirty string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+			if len(rev) > 12 {
+				rev = rev[:12]
+			}
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = "-dirty"
+			}
+		}
+	}
+	if rev != "" {
+		return rev + dirty
+	}
+	return "dev"
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -55,7 +136,7 @@ func run(args []string) error {
 			usage(os.Stdout)
 			return nil
 		case "version", "-v", "--version":
-			fmt.Println("sshm " + version)
+			fmt.Println("sshm " + buildVersion())
 			return nil
 		}
 		if strings.HasPrefix(args[0], "-") {

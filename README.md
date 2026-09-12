@@ -1,5 +1,8 @@
 # sshm
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/talk2sohail/sshm.svg)](https://pkg.go.dev/github.com/talk2sohail/sshm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/talk2sohail/sshm)](https://goreportcard.com/report/github.com/talk2sohail/sshm)
+
 A terminal picker for the servers you actually use. Type a few letters, hit
 Enter, you are in. No remembering IPs, no hunting for which folder the `.pem`
 ended up in.
@@ -48,15 +51,32 @@ tenth of that.
 
 ## Install
 
+Needs Go 1.24 or newer and an `ssh` client on your `PATH`.
+
 ```sh
-git clone <this repo> && cd sshm
+go install github.com/talk2sohail/sshm/cmd/sshm@latest
+```
+
+That puts `sshm` in `$(go env GOPATH)/bin`, which has to be on your `PATH`:
+
+```sh
+export PATH="$PATH:$(go env GOPATH)/bin"     # add to your shell rc
+```
+
+Pin a release instead of tracking the tip with `@v0.1.0`, or any published tag.
+
+From a checkout, if you are working on it:
+
+```sh
+git clone https://github.com/talk2sohail/sshm && cd sshm
 make setup      # fetch dependencies (once, needs network)
 make install    # builds and installs to $(go env GOPATH)/bin
 ```
 
-Make sure `$(go env GOPATH)/bin` is on your `PATH`.
-
 On Windows there is no `make`; see [Windows](#windows) below.
+
+Check what you got with `sshm version`. A `go install`ed binary reports the
+module version it was built from; a local build reports the commit.
 
 ## Quick start
 
@@ -144,16 +164,24 @@ clipboard — but four things are different enough to be worth stating.
 **Install.** A stock Windows box has no `make`, so go through `go` directly:
 
 ```powershell
-git clone <this repo>
-cd sshm
-go mod tidy
-go install -trimpath ./cmd/sshm
+go install github.com/talk2sohail/sshm/cmd/sshm@latest
 ```
 
 That leaves `sshm.exe` in `$(go env GOPATH)\bin`, which has to be on your `PATH`:
 
 ```powershell
-$env:PATH += ";$(go env GOPATH)\bin"       # this session
+$env:PATH += ";$(go env GOPATH)\bin"                    # this session only
+[Environment]::SetEnvironmentVariable('PATH',
+  "$([Environment]::GetEnvironmentVariable('PATH','User'));$(go env GOPATH)\bin",
+  'User')                                              # permanently
+```
+
+From a checkout instead, if you are working on it:
+
+```powershell
+git clone https://github.com/talk2sohail/sshm
+cd sshm
+go install -trimpath ./cmd/sshm
 ```
 
 **You need an ssh client.** sshm finds and runs `ssh`; it does not implement it.
