@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 func byAlias(hosts []model.Host, alias string) (model.Host, bool) {

@@ -14,11 +14,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/model"
-	"github.com/sohail/sshm/internal/probe"
-	"github.com/sohail/sshm/internal/search"
-	"github.com/sohail/sshm/internal/store"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/probe"
+	"github.com/talk2sohail/sshm/internal/search"
+	"github.com/talk2sohail/sshm/internal/store"
 )
 
 type mode int

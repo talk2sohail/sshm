@@ -15,15 +15,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/launch"
-	"github.com/sohail/sshm/internal/model"
-	"github.com/sohail/sshm/internal/probe"
-	"github.com/sohail/sshm/internal/search"
-	"github.com/sohail/sshm/internal/shellinit"
-	"github.com/sohail/sshm/internal/sshconf"
-	"github.com/sohail/sshm/internal/store"
-	"github.com/sohail/sshm/internal/ui"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/launch"
+	"github.com/talk2sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/probe"
+	"github.com/talk2sohail/sshm/internal/search"
+	"github.com/talk2sohail/sshm/internal/shellinit"
+	"github.com/talk2sohail/sshm/internal/sshconf"
+	"github.com/talk2sohail/sshm/internal/store"
+	"github.com/talk2sohail/sshm/internal/ui"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".

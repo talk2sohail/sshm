@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/model"
 )
 
 func fixtures() []model.Host {

@@ -17,7 +17,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sohail/sshm/internal/atomicfile"
+	"github.com/talk2sohail/sshm/internal/atomicfile"
 )
 
 const (

@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/sohail/sshm/internal/frecency"
-	"github.com/sohail/sshm/internal/model"
-	"github.com/sohail/sshm/internal/store"
+	"github.com/talk2sohail/sshm/internal/frecency"
+	"github.com/talk2sohail/sshm/internal/model"
+	"github.com/talk2sohail/sshm/internal/store"
 )
 
 // newTestModel builds a model over a temporary store so tests never touch the
